@@ -24,3 +24,8 @@ no need for available and taken, can use sleep and mutexes
 4. Debug, for time_to_debug ms.
 5. Refactor, for time_to_refactor ms.
 6. Loop.
+
+
+
+condicao coder journey, adicionar if qntes de printar as coisas para checar se algu, coder deu burnout porque se nao eles vao so parar quando fizerem o while inteiro
+mutex funcao print

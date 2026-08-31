@@ -36,16 +36,18 @@ typedef struct s_coder
 
 typedef struct s_codex
 {
-    long           number_of_coders;
-    long           time_to_burnout;
-    long           time_to_compile;
-    long           time_to_debug;
-    long           time_to_refactor;
-    long           number_of_compiles_required;
-    long           dongle_cooldown;
-    t_scheduler    scheduler;
-    t_dongle       *dongles;
-    t_coder        *coders;
+    long            number_of_coders;
+    long            time_to_burnout;
+    long            time_to_compile;
+    long            time_to_debug;
+    long            time_to_refactor;
+    long            number_of_compiles_required;
+    long            dongle_cooldown;
+    t_scheduler     scheduler;
+    t_dongle        *dongles;
+    t_coder         *coders;
+    int             sim_stopped;
+    pthread_mutex_t mutex_sim;
 
 } t_codex;
 
@@ -60,8 +62,8 @@ int dongles_init();
 int coders_init();
 void dongle_order(t_coder *coder, int *first_dongle, int *second_dongle);
 long timeofday_converter();
-void get_dongle(int i);
+int get_dongle(int i);
 void let_dongle(int i);
 void let_both_dongles(t_coder *coder);
-void get_both_dongles(t_coder *coder);
+int get_both_dongles(t_coder *coder);
 void *coder_journey(void *arg);
