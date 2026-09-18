@@ -14,7 +14,7 @@ void	dongle_order(t_coder *coder, int *first_dongle, int *second_dongle)
 	}
 }
 
-int	wait_outcome(int i, t_codex *codex)
+int	wait_outcome(int i, t_codex *codex, t_coder *coder)
 {
 	if (sim_is_stopped(codex) == 1)
 	{
@@ -24,6 +24,7 @@ int	wait_outcome(int i, t_codex *codex)
 	else
 	{
 		codex->dongles[i].dongle_availability = taken;
+		codex->dongles[i].heap.last_dgl_granted = coder->coder_id;
 		heap_pop(&codex->dongles[i].heap);
 		pthread_mutex_unlock(&codex->dongles[i].mutex);
 		return (1);
@@ -35,19 +36,26 @@ int	get_dongle(int i, t_coder *coder)
 	t_codex			*codex;
 
 	codex = codex_return();
-	pthread_mutex_lock(&codex->dongles[i].mutex);
 	heap_push(&codex->dongles[i].heap, coder);
+	pthread_mutex_lock(&codex->dongles[i].mutex);
 	while ((codex->dongles[i].dongle_availability != available
-		|| timeofday_converter() - codex->dongles[i].released_time
-		< codex->dongle_cooldown
-		|| heap_peek(&codex->dongles[i].heap) != coder->coder_id)
+			|| timeofday_converter() - codex->dongles[i].released_time
+			< codex->dongle_cooldown
+			|| heap_peek(&codex->dongles[i].heap) != coder->coder_id)
 		&& sim_is_stopped(codex) == 0)
-		{
-			pthread_mutex_unlock(&codex->dongles[i].mutex);
-			usleep(1000);
-			pthread_mutex_lock(&codex->dongles[i].mutex);
-		}
-	return (wait_outcome(i, codex));
+	{
+		pthread_mutex_unlock(&codex->dongles[i].mutex);
+		usleep(1000);
+		pthread_mutex_lock(&codex->dongles[i].mutex);
+	}
+	return (wait_outcome(i, codex, coder));
+}
+
+void	printer(t_coder *coder)
+{
+	printf("%ld %ld has taken a dongle\n",
+		timeofday_converter() - codex_return()->start_time,
+		coder->coder_id);
 }
 
 int	get_both_dongles(t_coder *coder)
@@ -63,14 +71,12 @@ int	get_both_dongles(t_coder *coder)
 	if (first_check == 1)
 	{
 		pthread_mutex_lock(&codex_return()->mutex_sim);
-		printf("%ld %ld has taken a dongle\n",
-			timeofday_converter(), coder->coder_id);
+		printer(coder);
 		pthread_mutex_unlock(&codex_return()->mutex_sim);
 		if (get_dongle(second_dongle, coder) == 1)
 		{
 			pthread_mutex_lock(&codex_return()->mutex_sim);
-			printf("%ld %ld has taken a dongle\n",
-				timeofday_converter(), coder->coder_id);
+			printer(coder);
 			pthread_mutex_unlock(&codex_return()->mutex_sim);
 			return (1);
 		}

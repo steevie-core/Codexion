@@ -27,6 +27,7 @@ int	dongles_init(void)
 		codex->dongles[i].heap.capacity = codex->number_of_coders;
 		if (heap_creation(&codex->dongles[i].heap) == -1)
 			return (-1);
+		codex->dongles[i].heap.last_dgl_granted = 0;
 		codex->dongles[i].dongle_availability = available;
 		codex->dongles[i].released_time = 0;
 		i++;

@@ -31,7 +31,8 @@ int	burnout_handle(t_codex *codex, long last_compile_locked, int i)
 	{
 		pthread_mutex_lock(&codex_return()->mutex_sim);
 		printf("%ld %ld has burned out\n",
-			timeofday_converter(), codex->coders[i].coder_id);
+			timeofday_converter() - codex_return()->start_time,
+			codex->coders[i].coder_id);
 		codex->sim_stopped = 1;
 		pthread_mutex_unlock(&codex->mutex_sim);
 		wakeup_thread(codex);

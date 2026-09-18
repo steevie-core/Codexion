@@ -14,7 +14,7 @@ void	free_heap(t_heap *heap)
 	free(heap->list);
 }
 
-int	priority_coder(t_coder	*a, t_coder	*b)
+int	priority_coder(t_coder	*a, t_coder	*b, t_heap *heap)
 {
 	t_codex	*codex;
 	long	deadline_a;
@@ -33,7 +33,12 @@ int	priority_coder(t_coder	*a, t_coder	*b)
 	{
 		if (deadline_a != deadline_b)
 			return (deadline_a < deadline_b);
-		return (a->coder_id < b->coder_id);
+		else if (a->coder_id == heap->last_dgl_granted)
+			return (0);
+		else if (b->coder_id == heap->last_dgl_granted)
+			return (1);
+		else
+			return (a->coder_id < b->coder_id);
 	}
 	return (0);
 }
@@ -47,7 +52,7 @@ void	sift_up(t_heap *heap)
 	while (i > 0)
 	{
 		parent = (i - 1) / 2;
-		if (priority_coder(heap->list[i], heap->list[parent]) == 0)
+		if (priority_coder(heap->list[i], heap->list[parent], heap) == 0)
 			break ;
 		swap_coder(&heap->list[i], &heap->list[parent]);
 		i = parent;
@@ -68,10 +73,10 @@ void	sift_down(t_heap *heap)
 		right_child = 2 * i + 2;
 		best = i;
 		if (left_child < heap->size
-			&& priority_coder(heap->list[left_child], heap->list[best]))
+			&& priority_coder(heap->list[left_child], heap->list[best], heap))
 			best = left_child;
 		if (right_child < heap->size
-			&& priority_coder(heap->list[right_child], heap->list[best]))
+			&& priority_coder(heap->list[right_child], heap->list[best], heap))
 			best = right_child;
 		if (best == i)
 			break ;

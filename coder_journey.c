@@ -5,14 +5,18 @@ void	simulation_stopper_helper(long ms)
 	long	slept;
 	t_codex	*codex;
 	int		sim_stopper;
+	long	curr_time;
+	long	start;
 
 	codex = codex_return();
 	slept = 0;
+	start = timeofday_converter();
 	sim_stopper = 0;
 	while (slept < ms && sim_stopper == 0)
 	{
-		usleep(1000);
-		slept = slept + 1;
+		usleep(100);
+		curr_time = timeofday_converter();
+		slept = curr_time - start;
 		sim_stopper = sim_is_stopped(codex);
 	}
 }
@@ -34,7 +38,7 @@ int	try_compile(t_coder *coder)
 		pthread_mutex_unlock(&coder->mutex);
 		pthread_mutex_lock(&codex_return()->mutex_sim);
 		printf("%ld %ld is compiling\n",
-			timeofday_converter(), coder->coder_id);
+			timeofday_converter() - codex->start_time, coder->coder_id);
 		pthread_mutex_unlock(&codex_return()->mutex_sim);
 		simulation_stopper_helper(codex->time_to_compile);
 		let_both_dongles(coder);
@@ -53,7 +57,7 @@ int	try_debug(t_coder *coder)
 	{
 		pthread_mutex_lock(&codex_return()->mutex_sim);
 		printf("%ld %ld is debugging\n",
-			timeofday_converter(), coder->coder_id);
+			timeofday_converter() - codex->start_time, coder->coder_id);
 		pthread_mutex_unlock(&codex_return()->mutex_sim);
 		simulation_stopper_helper(codex->time_to_debug);
 		return (1);
@@ -72,7 +76,7 @@ int	try_refactor(t_coder *coder)
 	{
 		pthread_mutex_lock(&codex_return()->mutex_sim);
 		printf("%ld %ld is refactoring\n",
-			timeofday_converter(), coder->coder_id);
+			timeofday_converter() - codex->start_time, coder->coder_id);
 		pthread_mutex_unlock(&codex_return()->mutex_sim);
 		simulation_stopper_helper(codex->time_to_refactor);
 		return (1);
@@ -85,15 +89,13 @@ int	try_refactor(t_coder *coder)
 void	*coder_jrney(void *arg)
 {
 	t_coder	*coder;
-	t_codex	*codex;
 	int		sim_stopper;
 	long	compile_count;
 
-	codex = codex_return();
 	coder = (t_coder *)arg;
-	sim_stopper = sim_is_stopped(codex);
+	sim_stopper = sim_is_stopped(codex_return());
 	compile_count = 0;
-	while (compile_count < codex->number_of_compiles_required
+	while (compile_count < codex_return()->number_of_compiles_required
 		&& sim_stopper == 0)
 	{
 		if (!try_compile(coder))
@@ -102,13 +104,13 @@ void	*coder_jrney(void *arg)
 		coder->coder_compiles_num++;
 		compile_count = coder->coder_compiles_num;
 		pthread_mutex_unlock(&coder->mutex);
-		if (coders_are_done(codex))
+		if (coders_are_done(codex_return()))
 			break ;
 		if (!try_debug(coder))
 			break ;
 		if (!try_refactor(coder))
 			break ;
-		sim_stopper = sim_is_stopped(codex);
+		sim_stopper = sim_is_stopped(codex_return());
 	}
 	return (NULL);
 }

@@ -28,6 +28,7 @@ typedef struct s_heap
 	struct s_coder		**list;
 	int					size;
 	int					capacity;
+	long				last_dgl_granted;
 }	t_heap;
 
 typedef struct s_dongle
@@ -64,6 +65,7 @@ typedef struct s_codex
 	t_coder				*coders;
 	int					sim_stopped;
 	pthread_mutex_t		mutex_sim;
+	long				start_time;
 }	t_codex;
 
 t_codex					*codex_return(void);
@@ -93,7 +95,7 @@ int						burnout_handle(t_codex *codex,
 							long last_compile_locked, int i);
 int						coders_are_done(t_codex *codex);
 void					*monitor_journey(void *arg);
-int						priority_coder(t_coder	*a, t_coder	*b);
+int						priority_coder(t_coder	*a, t_coder	*b, t_heap *heap);
 void					swap_coder(t_coder **a, t_coder **b);
 void					sift_up(t_heap *heap);
 void					sift_down(t_heap *heap);
