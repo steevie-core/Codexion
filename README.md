@@ -197,25 +197,32 @@ Coder threads check `sim_stopped` before and during their activities. This allow
 
 ## Resources
 
-- POSIX Threads documentation:  
-  https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/pthread.h.html
+- Understanding the dining philosophers problem:
+  https://en.wikipedia.org/wiki/Dining_philosophers_problem
+
+- Thread versus Process:
+  https://www.youtube.com/watch?v=1myWEH8IGt4
+  https://www.youtube.com/watch?v=PgDaJEjlBuI
+  https://www.youtube.com/watch?v=4rLW7zg21gI
+  
+- POSIX Threads documentation:
+  https://en.wikipedia.org/wiki/Pthreads 
+  https://www.youtube.com/watch?v=ldJ8WGZVXZk
 
 - `pthread_mutex_lock` documentation:  
   https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html
-
-- `pthread_cond_wait` documentation:  
-  https://man7.org/linux/man-pages/man3/pthread_cond_wait.3.html
-
-- `pthread_create` documentation:  
-  https://man7.org/linux/man-pages/man3/pthread_create.3.html
+  https://www.youtube.com/watch?v=raLCgPK-Igc
+  
+- Heap documentation:
+  https://www.youtube.com/watch?v=Dvq-YKeuO9Y&t=762s
+  https://www.youtube.com/watch?v=9q4AQFiSOLU
+  https://www.youtube.com/watch?v=XycnarZEBvQ&t=11s
 
 - Valgrind Helgrind documentation:  
   https://valgrind.org/docs/manual/hg-manual.html
 
-- Earliest Deadline First scheduling:  
-  https://en.wikipedia.org/wiki/Earliest_deadline_first_scheduling
-
-- Coffman deadlock conditions:  
+- Coffman deadlock conditions:
+  https://www.youtube.com/watch?v=ElXO5cGBDEs
   https://en.wikipedia.org/wiki/Deadlock
 
 ### AI usage
