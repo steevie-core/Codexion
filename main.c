@@ -50,8 +50,8 @@ int	main(int argc, char **argv)
 	coder_thrds = malloc(codex_return()->number_of_coders * sizeof(pthread_t));
 	if (!(coder_thrds))
 		return (printf("Memory allocation issue\n"), 1);
-	pthread_create(&monitor_thread, NULL, monitor_journey, NULL);
 	codex_return()->start_time = timeofday_converter();
+	pthread_create(&monitor_thread, NULL, monitor_journey, NULL);
 	while (++i < codex_return()->number_of_coders)
 		pthread_create(&coder_thrds[i], NULL,
 			coder_jrney, &codex_return()->coders[i]);

@@ -36,8 +36,8 @@ int	get_dongle(int i, t_coder *coder)
 	t_codex			*codex;
 
 	codex = codex_return();
-	heap_push(&codex->dongles[i].heap, coder);
 	pthread_mutex_lock(&codex->dongles[i].mutex);
+	heap_push(&codex->dongles[i].heap, coder);
 	while ((codex->dongles[i].dongle_availability != available
 			|| timeofday_converter() - codex->dongles[i].released_time
 			< codex->dongle_cooldown
