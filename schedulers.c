@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   schedulers.c                                       :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: limelo-c <limelo-c@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/09/19 15:55:19 by limelo-c          #+#    #+#             */
+/*   Updated: 2026/09/19 15:55:19 by limelo-c         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "codexion.h"
 
 int	heap_creation(t_heap *heap)
@@ -21,8 +33,8 @@ int	priority_coder(t_coder	*a, t_coder	*b, t_heap *heap)
 	long	deadline_b;
 
 	codex = codex_return();
-	deadline_a = a->last_compile + codex->time_to_burnout;
-	deadline_b = b->last_compile + codex->time_to_burnout;
+	deadline_a = a->last_compile;
+	deadline_b = b->last_compile;
 	if (codex->scheduler == fifo_sched)
 	{
 		if (a->arrival != b->arrival)
@@ -33,7 +45,7 @@ int	priority_coder(t_coder	*a, t_coder	*b, t_heap *heap)
 	{
 		if (deadline_a != deadline_b)
 			return (deadline_a < deadline_b);
-		else if (a->coder_id == heap->last_dgl_granted)
+		if (a->coder_id == heap->last_dgl_granted)
 			return (0);
 		else if (b->coder_id == heap->last_dgl_granted)
 			return (1);

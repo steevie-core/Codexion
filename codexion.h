@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   codexion.h                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: limelo-c <limelo-c@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/09/19 15:54:01 by limelo-c          #+#    #+#             */
+/*   Updated: 2026/09/19 15:54:01 by limelo-c         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef CODEXION_H
 # define CODEXION_H
 
@@ -48,7 +60,7 @@ typedef struct s_coder
 	long				last_compile;
 	int					left_dongle;
 	int					right_dongle;
-	int					arrival;
+	long				arrival;
 }	t_coder;
 
 typedef struct s_codex
@@ -91,8 +103,8 @@ int						try_refactor(t_coder *coder);
 void					*coder_jrney(void *arg);
 int						sim_is_stopped(t_codex *codex);
 void					wakeup_thread(t_codex *codex);
-int						burnout_handle(t_codex *codex,
-							long last_compile_locked, int i);
+int						burnout_handle(t_codex *codex, long last_compile_locked,
+							int c_done, int i);
 int						coders_are_done(t_codex *codex);
 void					*monitor_journey(void *arg);
 int						priority_coder(t_coder	*a, t_coder	*b, t_heap *heap);

@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   monitor_journey.c                                  :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: limelo-c <limelo-c@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/09/19 15:55:05 by limelo-c          #+#    #+#             */
+/*   Updated: 2026/09/19 15:55:05 by limelo-c         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "codexion.h"
 
 int	sim_is_stopped(t_codex *codex)
@@ -25,8 +37,10 @@ void	wakeup_thread(t_codex *codex)
 	}
 }
 
-int	burnout_handle(t_codex *codex, long last_compile_locked, int i)
+int	burnout_handle(t_codex *codex, long last_compile_locked, int c_done, int i)
 {
+	if (c_done >= codex->number_of_compiles_required)
+		return (0);
 	if (timeofday_converter() - last_compile_locked > codex->time_to_burnout)
 	{
 		pthread_mutex_lock(&codex_return()->mutex_sim);
@@ -67,28 +81,28 @@ int	coders_are_done(t_codex *codex)
 
 void	*monitor_journey(void *arg)
 {
-	t_codex	*codex;
-	int		i;
+	int		i[2];
 	long	last_compile_locked;
 
 	(void)arg;
-	codex = codex_return();
+	i[0] = 0;
 	last_compile_locked = 0;
-	i = 0;
+	i[1] = 0;
 	while (1)
 	{
-		i = 0;
-		while (i < codex->number_of_coders)
+		i[0] = -1;
+		while (++i[0] < codex_return()->number_of_coders)
 		{
-			pthread_mutex_lock(&codex->coders[i].mutex);
-			last_compile_locked = codex->coders[i].last_compile;
-			pthread_mutex_unlock(&codex->coders[i].mutex);
-			if (burnout_handle(codex, last_compile_locked, i) == 1)
+			pthread_mutex_lock(&codex_return()->coders[i[0]].mutex);
+			last_compile_locked = codex_return()->coders[i[0]].last_compile;
+			i[1] = codex_return()->coders[i[0]].coder_compiles_num;
+			pthread_mutex_unlock(&codex_return()->coders[i[0]].mutex);
+			if (burnout_handle(codex_return(),
+					last_compile_locked, i[1], i[0]) == 1)
 				return (NULL);
-			i++;
 		}
 		usleep(2000);
-		if (coders_are_done(codex) == 1)
+		if (coders_are_done(codex_return()) == 1)
 			return (NULL);
 	}
 	return (NULL);
