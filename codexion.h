@@ -116,5 +116,6 @@ void					heap_push(t_heap *heap, t_coder *coder);
 int						heap_peek(t_heap *heap);
 int						heap_creation(t_heap *heap);
 void					free_heap(t_heap *heap);
+void					add_to_heaps(t_coder *coder);
 
 #endif

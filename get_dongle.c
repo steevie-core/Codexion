@@ -49,7 +49,6 @@ int	get_dongle(int i, t_coder *coder)
 
 	codex = codex_return();
 	pthread_mutex_lock(&codex->dongles[i].mutex);
-	heap_push(&codex->dongles[i].heap, coder);
 	while ((codex->dongles[i].dongle_availability != available
 			|| timeofday_converter() - codex->dongles[i].released_time
 			< codex->dongle_cooldown
@@ -57,7 +56,7 @@ int	get_dongle(int i, t_coder *coder)
 		&& sim_is_stopped(codex) == 0)
 	{
 		pthread_mutex_unlock(&codex->dongles[i].mutex);
-		usleep(1000);
+		usleep(100);
 		pthread_mutex_lock(&codex->dongles[i].mutex);
 	}
 	return (wait_outcome(i, codex, coder));
@@ -77,6 +76,7 @@ int	get_both_dongles(t_coder *coder)
 	int	first_check;
 
 	dongle_order(coder, &first_dongle, &second_dongle);
+	add_to_heaps(coder);
 	first_check = get_dongle(first_dongle, coder);
 	if (first_check == 0)
 		return (0);

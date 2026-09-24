@@ -101,7 +101,7 @@ void	*monitor_journey(void *arg)
 					last_compile_locked, i[1], i[0]) == 1)
 				return (NULL);
 		}
-		usleep(2000);
+		usleep(100);
 		if (coders_are_done(codex_return()) == 1)
 			return (NULL);
 	}

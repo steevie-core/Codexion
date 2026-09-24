@@ -28,15 +28,13 @@ int	validator_numeric_donglecd(const char *str)
 	i = 0;
 	len = strlen(str);
 	value = 0;
-	if (str[0] == '\0')
-		return (-1);
-	if (len > 10)
-		return (-1);
 	while (i < len)
 	{
 		if (str[i] >= '0' && str[i] <= '9')
 		{
 			value = value * 10 + (str[i] - '0');
+			if (value > INT_MAX)
+				return (printf("Overflow value, "), -1);
 			i++;
 		}
 		else
@@ -66,6 +64,8 @@ int	validator_numeric(const char *str)
 		if (str[i] >= '0' && str[i] <= '9')
 		{
 			value = value * 10 + (str[i] - '0');
+			if (value > INT_MAX)
+				return (printf("Overflow value, "), -1);
 			i++;
 		}
 		else

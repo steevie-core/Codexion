@@ -45,3 +45,20 @@ int	heap_peek(t_heap *heap)
 		return (-1);
 	return (heap->list[0]->coder_id);
 }
+
+void	add_to_heaps(t_coder *coder)
+{
+	int	first;
+	int	second;
+
+	dongle_order(coder, &first, &second);
+	pthread_mutex_lock(&codex_return()->dongles[first].mutex);
+	heap_push(&codex_return()->dongles[first].heap, coder);
+	if (first != second)
+	{
+		pthread_mutex_lock(&codex_return()->dongles[second].mutex);
+		heap_push(&codex_return()->dongles[second].heap, coder);
+		pthread_mutex_unlock(&codex_return()->dongles[second].mutex);
+	}
+	pthread_mutex_unlock(&codex_return()->dongles[first].mutex);
+}

@@ -63,10 +63,31 @@ int	main(int argc, char **argv)
 	if (!(coder_thrds))
 		return (printf("Memory allocation issue\n"), 1);
 	codex_return()->start_time = timeofday_converter();
-	pthread_create(&monitor_thread, NULL, monitor_journey, NULL);
+	if (pthread_create(&monitor_thread, NULL, monitor_journey, NULL) != 0)
+	{
+		printf("Error creating monitor thread\n");
+		free(coder_thrds);
+		cleanup(codex_return());
+		return (1);
+	}
 	while (++i < codex_return()->number_of_coders)
-		pthread_create(&coder_thrds[i], NULL,
-			coder_jrney, &codex_return()->coders[i]);
+	{
+		if (pthread_create(&coder_thrds[i], NULL,
+				coder_jrney, &codex_return()->coders[i]) != 0)
+		{
+			printf("Error creating coder thread\n");
+			pthread_mutex_lock(&codex_return()->mutex_sim);
+			codex_return()->sim_stopped = 1;
+			pthread_mutex_unlock(&codex_return()->mutex_sim);
+			wakeup_thread(codex_return());
+			while (--i >= 0)
+				pthread_join(coder_thrds[i], NULL);
+			pthread_join(monitor_thread, NULL);
+			cleanup(codex_return());
+			free(coder_thrds);
+			return (1);
+		}
+	}
 	i = -1;
 	while (++i < codex_return()->number_of_coders)
 		pthread_join(coder_thrds[i], NULL);
