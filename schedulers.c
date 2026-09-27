@@ -12,47 +12,52 @@
 
 #include "codexion.h"
 
-int	heap_creation(t_heap *heap)
-{
-	heap->list = malloc(heap->capacity * sizeof(t_coder *));
-	if (!heap->list)
-		return (-1);
-	heap->size = 0;
-	return (0);
-}
-
 void	free_heap(t_heap *heap)
 {
 	free(heap->list);
 }
 
-int	priority_coder(t_coder	*a, t_coder	*b, t_heap *heap)
+static void	scheduler_comparison(t_coder *a, t_coder *b)
 {
-	t_codex	*codex;
-	long	deadline_a;
-	long	deadline_b;
-
-	codex = codex_return();
-	deadline_a = a->last_compile;
-	deadline_b = b->last_compile;
-	if (codex->scheduler == fifo_sched)
+	if (a->coder_id < b->coder_id)
 	{
-		if (a->arrival != b->arrival)
-			return (a->arrival < b->arrival);
+		pthread_mutex_lock(&a->mutex);
+		pthread_mutex_lock(&b->mutex);
+	}
+	else
+	{
+		pthread_mutex_lock(&b->mutex);
+		pthread_mutex_lock(&a->mutex);
+	}
+}
+
+int	priority_coder(t_coder *a, t_coder *b)
+{
+	long		deadline_a;
+	long		deadline_b;
+	long		arrival_a;
+	long		arrival_b;
+	t_scheduler	sched;
+
+	if (a == b)
+		return (0);
+	sched = codex_return()->scheduler;
+	scheduler_comparison(a, b);
+	arrival_a = a->arrival;
+	deadline_a = a->last_compile;
+	arrival_b = b->arrival;
+	deadline_b = b->last_compile;
+	pthread_mutex_unlock(&b->mutex);
+	pthread_mutex_unlock(&a->mutex);
+	if (sched == fifo_sched)
+	{
+		if (arrival_a != arrival_b)
+			return (arrival_a < arrival_b);
 		return (a->coder_id < b->coder_id);
 	}
-	if (codex->scheduler == edf_sched)
-	{
-		if (deadline_a != deadline_b)
-			return (deadline_a < deadline_b);
-		if (a->coder_id == heap->last_dgl_granted)
-			return (0);
-		else if (b->coder_id == heap->last_dgl_granted)
-			return (1);
-		else
-			return (a->coder_id < b->coder_id);
-	}
-	return (0);
+	if (deadline_a != deadline_b)
+		return (deadline_a < deadline_b);
+	return (a->coder_id < b->coder_id);
 }
 
 void	sift_up(t_heap *heap)
@@ -64,7 +69,7 @@ void	sift_up(t_heap *heap)
 	while (i > 0)
 	{
 		parent = (i - 1) / 2;
-		if (priority_coder(heap->list[i], heap->list[parent], heap) == 0)
+		if (priority_coder(heap->list[i], heap->list[parent]) == 0)
 			break ;
 		swap_coder(&heap->list[i], &heap->list[parent]);
 		i = parent;
@@ -85,10 +90,10 @@ void	sift_down(t_heap *heap)
 		right_child = 2 * i + 2;
 		best = i;
 		if (left_child < heap->size
-			&& priority_coder(heap->list[left_child], heap->list[best], heap))
+			&& priority_coder(heap->list[left_child], heap->list[best]))
 			best = left_child;
 		if (right_child < heap->size
-			&& priority_coder(heap->list[right_child], heap->list[best], heap))
+			&& priority_coder(heap->list[right_child], heap->list[best]))
 			best = right_child;
 		if (best == i)
 			break ;

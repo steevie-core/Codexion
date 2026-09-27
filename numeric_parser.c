@@ -52,12 +52,12 @@ int	validator_numeric(const char *str)
 	size_t	counter_zero;
 	long	value;
 
-	i = 0;
+	i = -1;
 	counter_zero = 0;
 	value = 0;
 	if (str[0] == '\0')
 		return (-1);
-	while (i < strlen(str))
+	while (++i < strlen(str))
 	{
 		if (str[i] == '0')
 			counter_zero++;
@@ -66,13 +66,11 @@ int	validator_numeric(const char *str)
 			value = value * 10 + (str[i] - '0');
 			if (value > INT_MAX)
 				return (printf("Overflow value, "), -1);
-			i++;
 		}
 		else
 			return (-1);
 	}
 	if (counter_zero == strlen(str) || overflow_checker(value) == -1)
 		return (-1);
-	else
-		return (value);
+	return (value);
 }

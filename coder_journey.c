@@ -35,28 +35,30 @@ void	simulation_stopper_helper(long ms)
 
 int	try_compile(t_coder *coder)
 {
-	t_codex	*codex;
-
-	codex = codex_return();
-	if (sim_is_stopped(codex) == 1)
+	if (sim_is_stopped(codex_return()) == 1)
 		return (0);
 	pthread_mutex_lock(&coder->mutex);
 	coder->arrival = timeofday_converter();
 	pthread_mutex_unlock(&coder->mutex);
-	if (get_both_dongles(coder) == 1)
-	{
-		pthread_mutex_lock(&coder->mutex);
-		coder->last_compile = timeofday_converter();
-		pthread_mutex_unlock(&coder->mutex);
-		pthread_mutex_lock(&codex_return()->mutex_sim);
-		printf("%ld %ld is compiling\n",
-			timeofday_converter() - codex->start_time, coder->coder_id);
-		pthread_mutex_unlock(&codex_return()->mutex_sim);
-		simulation_stopper_helper(codex->time_to_compile);
-		let_both_dongles(coder);
-	}
-	if (sim_is_stopped(codex) == 1)
+	if (get_both_dongles(coder) == 0
+		|| sim_is_stopped(codex_return()) == 1)
 		return (0);
+	pthread_mutex_lock(&coder->mutex);
+	coder->last_compile = timeofday_converter();
+	pthread_mutex_unlock(&coder->mutex);
+	pthread_mutex_lock(&codex_return()->mutex_sim);
+	if (codex_return()->sim_stopped)
+	{
+		pthread_mutex_unlock(&codex_return()->mutex_sim);
+		return (0);
+	}
+	printf("%ld %ld is compiling\n",
+		timeofday_converter() - codex_return()->start_time, coder->coder_id);
+	pthread_mutex_unlock(&codex_return()->mutex_sim);
+	simulation_stopper_helper(codex_return()->time_to_compile);
+	if (sim_is_stopped(codex_return()) == 1)
+		return (0);
+	let_both_dongles(coder);
 	return (1);
 }
 
@@ -65,18 +67,17 @@ int	try_debug(t_coder *coder)
 	t_codex	*codex;
 
 	codex = codex_return();
-	if (sim_is_stopped(codex) == 0)
+	pthread_mutex_lock(&codex_return()->mutex_sim);
+	if (codex->sim_stopped)
 	{
-		pthread_mutex_lock(&codex_return()->mutex_sim);
-		printf("%ld %ld is debugging\n",
-			timeofday_converter() - codex->start_time, coder->coder_id);
-		pthread_mutex_unlock(&codex_return()->mutex_sim);
-		simulation_stopper_helper(codex->time_to_debug);
-		return (1);
-	}
-	if (sim_is_stopped(codex) == 1)
+		pthread_mutex_unlock(&codex->mutex_sim);
 		return (0);
-	return (1);
+	}
+	printf("%ld %ld is debugging\n",
+		timeofday_converter() - codex->start_time, coder->coder_id);
+	pthread_mutex_unlock(&codex_return()->mutex_sim);
+	simulation_stopper_helper(codex->time_to_debug);
+	return (sim_is_stopped(codex) == 0);
 }
 
 int	try_refactor(t_coder *coder)
@@ -84,18 +85,17 @@ int	try_refactor(t_coder *coder)
 	t_codex	*codex;
 
 	codex = codex_return();
-	if (sim_is_stopped(codex) == 0)
+	pthread_mutex_lock(&codex_return()->mutex_sim);
+	if (codex->sim_stopped)
 	{
-		pthread_mutex_lock(&codex_return()->mutex_sim);
-		printf("%ld %ld is refactoring\n",
-			timeofday_converter() - codex->start_time, coder->coder_id);
-		pthread_mutex_unlock(&codex_return()->mutex_sim);
-		simulation_stopper_helper(codex->time_to_refactor);
-		return (1);
-	}
-	if (sim_is_stopped(codex) == 1)
+		pthread_mutex_unlock(&codex->mutex_sim);
 		return (0);
-	return (1);
+	}
+	printf("%ld %ld is refactoring\n",
+		timeofday_converter() - codex->start_time, coder->coder_id);
+	pthread_mutex_unlock(&codex_return()->mutex_sim);
+	simulation_stopper_helper(codex->time_to_refactor);
+	return (sim_is_stopped(codex) == 0);
 }
 
 void	*coder_jrney(void *arg)

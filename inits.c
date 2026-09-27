@@ -32,14 +32,13 @@ int	dongles_init(void)
 	if (!(dongle_arr))
 		return (-1);
 	codex->dongles = dongle_arr;
+	codex->waiting_heap.capacity = codex->number_of_coders;
+	if (heap_creation(&codex_return()->waiting_heap) == -1)
+		return (-1);
 	while (i < codex->number_of_coders)
 	{
 		pthread_mutex_init(&codex->dongles[i].mutex, NULL);
 		pthread_cond_init(&codex->dongles[i].thread_sleep, NULL);
-		codex->dongles[i].heap.capacity = codex->number_of_coders;
-		if (heap_creation(&codex->dongles[i].heap) == -1)
-			return (-1);
-		codex->dongles[i].heap.last_dgl_granted = 0;
 		codex->dongles[i].dongle_availability = available;
 		codex->dongles[i].released_time = 0;
 		i++;

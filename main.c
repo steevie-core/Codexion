@@ -12,85 +12,87 @@
 
 #include "codexion.h"
 
-t_codex	*codex_return(void)
+static int	parser_valid(int argc, char **argv)
 {
-	static t_codex	codex;
-
-	return (&codex);
+	if (argc != 9)
+		return (printf("wrong number of arguments\n"), 1);
+	if (parser_validator(argv) == 1 || parser_last_validator(argv) == 1)
+		return (1);
+	return (0);
 }
 
-static void	cleanup(t_codex *codex)
+static int	init_sim(void)
+{
+	int	i;
+
+	pthread_mutex_init(&codex_return()->mutex_sim, NULL);
+	pthread_mutex_init(&codex_return()->mutex_sched, NULL);
+	if (dongles_init() == -1 || coders_init() == -1)
+		return (printf("Memory allocation issue\n"), 1);
+	codex_return()->start_time = timeofday_converter();
+	i = 0;
+	while (i < codex_return()->number_of_coders)
+	{
+		pthread_mutex_lock(&codex_return()->coders[i].mutex);
+		codex_return()->coders[i].last_compile = codex_return()->start_time;
+		pthread_mutex_unlock(&codex_return()->coders[i].mutex);
+		i++;
+	}
+	return (0);
+}
+
+static int	create_coder_threads(pthread_t *coder_thrds, int *created)
 {
 	int	i;
 
 	i = 0;
-	while (i < codex->number_of_coders)
+	while (i < codex_return()->number_of_coders)
 	{
-		free_heap(&codex->dongles[i].heap);
-		pthread_mutex_destroy(&codex->dongles[i].mutex);
-		pthread_mutex_destroy(&codex->coders[i].mutex);
-		pthread_cond_destroy(&codex->dongles[i].thread_sleep);
+		if (pthread_create(&coder_thrds[i], NULL, coder_jrney,
+				&codex_return()->coders[i]))
+		{
+			*created = i;
+			return (1);
+		}
 		i++;
 	}
-	pthread_mutex_destroy(&codex->mutex_sim);
-	free(codex->dongles);
-	free(codex->coders);
+	return (0);
 }
 
-static void	caller(pthread_t *monitor_thread,
-		pthread_t **coder_threads, t_codex *codex)
+static void	wait_coders(pthread_t *coder_thrds)
 {
-	pthread_join(*monitor_thread, NULL);
-	cleanup(codex);
-	free(*coder_threads);
+	int	i;
+
+	i = 0;
+	while (i < codex_return()->number_of_coders)
+	{
+		pthread_join(coder_thrds[i], NULL);
+		i++;
+	}
 }
 
 int	main(int argc, char **argv)
 {
 	pthread_t	*coder_thrds;
 	pthread_t	monitor_thread;
-	int			i;
+	int			created;
 
-	i = -1;
-	pthread_mutex_init(&codex_return()->mutex_sim, NULL);
-	if (argc != 9)
-		return (printf("wrong number of arguments\n"), 1);
-	if (parser_validator(argv) == 1 || parser_last_validator(argv) == 1)
+	if (parser_valid(argc, argv) != 0)
 		return (1);
-	if (dongles_init() == -1 || coders_init() == -1)
-		return (printf("Memory allocation issue\n"), 1);
+	if (init_sim() != 0)
+		return (1);
 	coder_thrds = malloc(codex_return()->number_of_coders * sizeof(pthread_t));
-	if (!(coder_thrds))
+	if (!coder_thrds)
 		return (printf("Memory allocation issue\n"), 1);
-	codex_return()->start_time = timeofday_converter();
 	if (pthread_create(&monitor_thread, NULL, monitor_journey, NULL) != 0)
+		return (caller(&monitor_thread, &coder_thrds, 0, -1), 1);
+	created = 0;
+	if (create_coder_threads(coder_thrds, &created) != 0)
 	{
-		printf("Error creating monitor thread\n");
-		free(coder_thrds);
-		cleanup(codex_return());
+		caller(&monitor_thread, &coder_thrds, 0, created);
 		return (1);
 	}
-	while (++i < codex_return()->number_of_coders)
-	{
-		if (pthread_create(&coder_thrds[i], NULL,
-				coder_jrney, &codex_return()->coders[i]) != 0)
-		{
-			printf("Error creating coder thread\n");
-			pthread_mutex_lock(&codex_return()->mutex_sim);
-			codex_return()->sim_stopped = 1;
-			pthread_mutex_unlock(&codex_return()->mutex_sim);
-			wakeup_thread(codex_return());
-			while (--i >= 0)
-				pthread_join(coder_thrds[i], NULL);
-			pthread_join(monitor_thread, NULL);
-			cleanup(codex_return());
-			free(coder_thrds);
-			return (1);
-		}
-	}
-	i = -1;
-	while (++i < codex_return()->number_of_coders)
-		pthread_join(coder_thrds[i], NULL);
-	caller(&monitor_thread, &coder_thrds, codex_return());
+	wait_coders(coder_thrds);
+	caller(&monitor_thread, &coder_thrds, 1, 0);
 	return (0);
 }

@@ -17,11 +17,11 @@ void	let_dongle(int i)
 	t_codex	*codex;
 
 	codex = codex_return();
-	pthread_mutex_lock(&codex->dongles[i].mutex);
+	pthread_mutex_lock(&codex->mutex_sched);
 	codex->dongles[i].dongle_availability = available;
 	codex->dongles[i].released_time = timeofday_converter();
 	pthread_cond_broadcast(&codex->dongles[i].thread_sleep);
-	pthread_mutex_unlock(&codex->dongles[i].mutex);
+	pthread_mutex_unlock(&codex->mutex_sched);
 }
 
 void	let_both_dongles(t_coder *coder)

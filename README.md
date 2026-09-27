@@ -107,14 +107,18 @@ Without a fixed ordering, the following Coffman conditions could produce deadloc
 
 The fixed dongle order prevents the circular-wait condition.
 
+The same principle is applied when the scheduler compares two coders' state (arrival time and deadline) under lock: their mutexes are always locked in ascending `coder_id` order, regardless of which coder is being compared to which. This prevents a symmetrical deadlock between two threads simultaneously comparing the same pair of coders in opposite order.
+
 ### Starvation prevention
 
 The dongle waiting queues use a heap. The selected coder is determined by the configured scheduler:
 
-- FIFO prioritizes earlier arrivals.
-- EDF prioritizes the coder with the earliest burnout deadline.
+- FIFO prioritizes earlier arrivals, so priority only improves the longer a coder waits.
+- EDF prioritizes the coder with the earliest burnout deadline, which likewise only becomes more urgent with time.
 
-The `last_dgl_granted` value is used as a tie-breaker when EDF deadlines are equal, helping avoid repeatedly selecting the same coder.
+In both policies, `coder_id` is used as the final tie-breaker whenever arrival times or deadlines are equal, so no comparison is ever ambiguous and no single coder can be repeatedly favored over another by chance.
+
+Coders that are next in priority order but whose dongles are not yet both available and past cooldown are temporarily skipped rather than discarded: they are pushed back onto the waiting heap so they remain in contention on the next scheduling round.
 
 ### Cooldown handling
 
@@ -128,7 +132,7 @@ The monitor thread periodically reads each coder’s `last_compile` value. If th
 
 ### Completion handling
 
-The monitor checks whether every coder has completed the required number of compilations. When all coders are finished, the simulation stops and waiting threads are notified.
+The monitor checks whether every coder has completed the required number of compilations. When all coders are finished, `sim_stopped` is set and `wakeup_thread` broadcasts on each dongle's condition variable (see the `pthread_cond_t` note on why this broadcast currently has no waiting listener); coder threads detect the stop themselves via their polling loops.
 
 ### Log serialization
 
@@ -144,29 +148,29 @@ The project uses:
 
 - A mutex for each dongle.
 - A mutex for each coder.
-- A simulation mutex for shared simulation state and logging.
+- A simulation mutex (`mutex_sim`) for shared simulation state and logging.
+- A scheduling mutex (`mutex_sched`) for the shared waiting heap.
 
 Examples:
 
-- Dongle availability, cooldown timestamps, and waiting heaps are accessed while holding the dongle mutex.
-- `last_compile`, `coder_compiles_num`, and other coder state are protected by the coder mutex.
-- `sim_stopped` and output operations are protected by the simulation mutex.
+- Dongle availability is checked under the dongle's own mutex in `both_dongles_permission`, and set under the dongle mutexes (plus `mutex_sim`) when a coder is granted both dongles in `got_dongles`. Releasing a dongle updates its availability and `released_time` under `mutex_sched` in `let_dongle`.
+- `last_compile`, `coder_compiles_num`, `arrival`, and other per-coder state are protected by that coder's own mutex. The scheduler also locks two coders' mutexes together (in a fixed `coder_id` order) when comparing their state in `priority_coder`.
+- `sim_stopped` and `printf` output are protected by `mutex_sim`.
+- The waiting heap (`waiting_heap`) is protected by `mutex_sched` everywhere it's pushed to or popped from.
 
 This prevents data races such as one thread updating `last_compile` while the monitor reads it.
 
 ### `pthread_cond_t`
 
-Each dongle contains a condition variable intended to notify waiting coders when the dongle state changes.
+Each dongle contains a condition variable, and it is broadcast in two places: `let_dongle` (after a dongle is released) and `wakeup_thread` (when the monitor stops the simulation).
 
-A dongle release broadcasts a notification after updating its availability and release time. Waiting threads can then recheck whether they are allowed to continue.
-
-Condition variables must always be used together with the mutex protecting the related condition state.
+In the current implementation, no thread ever calls `pthread_cond_wait` on these condition variables — there is no blocking consumer. The actual waiting behavior is done by short polling loops instead: `get_both_dongles` retries roughly every 100 microseconds via `usleep`, and `simulation_stopper_helper` does the same while a coder is compiling, debugging, or refactoring, checking `sim_is_stopped()` on each pass. The condition variables are declared, initialized, destroyed, and broadcast on correctly, but as written they do not currently drive any thread's wake-up — that role is filled entirely by the polling loops re-checking shared state under the relevant mutex.
 
 ### Custom event implementation
 
-The project does not use a separate custom event abstraction. Thread communication is implemented using POSIX mutexes, condition variables, and simulation-state checks.
+The project does not use a separate custom event abstraction. Thread communication is implemented using POSIX mutexes and simulation-state checks; condition variables are declared and broadcast on but, since no thread calls `pthread_cond_wait`, they are not what actually propagates the stop signal (see `pthread_cond_t` above).
 
-The monitor communicates a global stop condition by updating `sim_stopped` under `mutex_sim` and waking waiting threads. Coder threads periodically check this state and stop their work when the simulation has ended.
+The monitor communicates a global stop condition by updating `sim_stopped` under `mutex_sim` and calling `wakeup_thread` (a broadcast on each dongle's condition variable, currently without effect for the reason above). Coder threads detect the stop by periodically re-reading `sim_stopped` through `sim_is_stopped()` / `sim_is_stopped(codex)` inside their own polling loops, and stop their work once it is set.
 
 ### Monitor and coder communication
 
@@ -177,53 +181,51 @@ The monitor thread:
 3. Unlocks the coder’s mutex.
 4. Detects burnout or completion.
 5. Updates `sim_stopped` under the simulation mutex.
-6. Wakes waiting threads.
+6. Broadcasts on each dongle's condition variable via `wakeup_thread` (see the note under `pthread_cond_t` about why this currently has no waiting listener).
 
-Coder threads check `sim_stopped` before and during their activities. This allows the monitor to stop the simulation without directly modifying coder-thread control flow.
+Coder threads check `sim_stopped` before and during their activities, via their own polling loops rather than by waking from a blocked `pthread_cond_wait`. This allows the monitor to stop the simulation without directly modifying coder-thread control flow.
 
 ## Project structure
 
-- `main.c`: initializes the simulation, creates threads, joins threads, and cleans up resources.
-- `coder_journey.c`: implements the coder lifecycle.
-- `get_dongle.c`: handles dongle acquisition.
-- `let_dongle.c`: releases dongles.
-- `monitor_journey.c`: monitors burnout and completion.
-- `schedulers.c`: implements FIFO and EDF priority logic.
-- `heap_op.c`: manages the dongle waiting heaps.
-- `inits.c`: initializes coders and dongles.
-- `parser.c`: validates command-line arguments.
-- `codexion.h`: contains shared structures and function declarations.
-- `Makefile`: provides build and cleanup commands.
+- `main.c`: parses arguments, initializes the simulation, creates the monitor and coder threads, joins them, and triggers cleanup.
+- `parser.c`: validates argument count/format and dispatches parsed values into the simulation struct; also validates and sets the scheduler (`fifo`/`edf`).
+- `numeric_parser.c`: numeric string validation and overflow checking used by `parser.c` for each numeric argument, plus a variant for the dongle cooldown argument.
+- `inits.c`: provides the millisecond timestamp helper and initializes the dongle array/waiting heap and coder array.
+- `coder_journey.c`: implements a coder thread's lifecycle loop — attempting to compile (which includes acquiring/releasing dongles), debug, and refactor, while checking for a simulation stop at each stage.
+- `get_dongle.c`: coordinates a coder's attempt to acquire both of its dongles, working with the scheduler and waiting heap to determine which coder is granted access.
+- `dongles_utils.c`: helper routines used during dongle acquisition — logging a dongle pickup, checking whether the simulation has stopped, checking whether both of a coder's dongles are available and past cooldown, and selecting the next ready coder from the waiting heap.
+- `let_dongle.c`: releases a coder's dongles and records their release time for the cooldown check.
+- `schedulers.c`: implements the FIFO/EDF priority comparison between two coders and the heap's sift-up/sift-down operations.
+- `heap_op.c`: implements the waiting heap's core primitives (creation, push, pop, peek, swap).
+- `monitor_journey.c`: the monitor thread's loop — detects coder burnout and overall completion, and stops the simulation when either occurs.
+- `cleaners.c`: holds the process-wide `codex_return()` singleton accessor, destroys mutexes/condition variables and frees allocated memory during cleanup, and joins the monitor thread before cleanup runs.
+- `codexion.h`: shared structs, enums, and function prototypes used across all source files.
+- `Makefile`: build and cleanup rules.
 
 ## Resources
 
-- Understanding the dining philosophers problem:
-  https://en.wikipedia.org/wiki/Dining_philosophers_problem
+### Concepts
 
-- Thread versus Process:
-  https://www.youtube.com/watch?v=1myWEH8IGt4
-  https://www.youtube.com/watch?v=PgDaJEjlBuI
-  https://www.youtube.com/watch?v=4rLW7zg21gI
-  
-- POSIX Threads documentation:
-  https://en.wikipedia.org/wiki/Pthreads 
-  https://www.youtube.com/watch?v=ldJ8WGZVXZk
+- [Dining Philosophers Problem](https://en.wikipedia.org/wiki/Dining_philosophers_problem) - Wikipedia
+- [Deadlock / Coffman Conditions](https://en.wikipedia.org/wiki/Deadlock) - Wikipedia
+- [POSIX Threads (Pthreads)](https://en.wikipedia.org/wiki/Pthreads) - Wikipedia
 
-- `pthread_mutex_lock` documentation:  
-  https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html
-  https://www.youtube.com/watch?v=raLCgPK-Igc
-  
-- Heap documentation:
-  https://www.youtube.com/watch?v=Dvq-YKeuO9Y&t=762s
-  https://www.youtube.com/watch?v=9q4AQFiSOLU
-  https://www.youtube.com/watch?v=XycnarZEBvQ&t=11s
+### Video explanations (Youtube)
 
-- Valgrind Helgrind documentation:  
-  https://valgrind.org/docs/manual/hg-manual.html
+- [Thread vs Process](https://www.youtube.com/watch?v=1myWEH8IGt4)
+- [Thread vs Process (alt. explanation)](https://www.youtube.com/watch?v=PgDaJEjlBuI)
+- [Thread vs Process (alt. explanation)](https://www.youtube.com/watch?v=4rLW7zg21gI)
+- [POSIX Threads walkthrough](https://www.youtube.com/watch?v=ldJ8WGZVXZk)
+- [pthread_mutex_lock explained](https://www.youtube.com/watch?v=raLCgPK-Igc)
+- [Heaps explained](https://www.youtube.com/watch?v=Dvq-YKeuO9Y&t=762s)
+- [Heaps explained (alt. explanation)](https://www.youtube.com/watch?v=9q4AQFiSOLU)
+- [Heaps explained (alt. explanation)](https://www.youtube.com/watch?v=XycnarZEBvQ&t=11s)
+- [Coffman deadlock conditions](https://www.youtube.com/watch?v=ElXO5cGBDEs)
 
-- Coffman deadlock conditions:
-  https://www.youtube.com/watch?v=ElXO5cGBDEs
-  https://en.wikipedia.org/wiki/Deadlock
+### Reference documentation
+
+- [pthread_mutex_lock man page](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html)
+- [Valgrind Helgrind manual](https://valgrind.org/docs/manual/hg-manual.html)
 
 ### AI usage
 

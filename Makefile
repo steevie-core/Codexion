@@ -9,6 +9,8 @@ SRCS =	coder_journey.c\
 		heap_op.c\
 		schedulers.c\
 		numeric_parser.c\
+		dongles_utils.c\
+		cleaners.c\
 		main.c\
 
 OBJ = $(SRCS:.c=.o)

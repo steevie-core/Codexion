@@ -12,6 +12,15 @@
 
 #include "codexion.h"
 
+int	heap_creation(t_heap *heap)
+{
+	heap->list = malloc(heap->capacity * sizeof(t_coder *));
+	if (!heap->list)
+		return (-1);
+	heap->size = 0;
+	return (0);
+}
+
 void	swap_coder(t_coder **a, t_coder **b)
 {
 	t_coder	*tmp;
@@ -37,28 +46,4 @@ t_coder	*heap_pop(t_heap *heap)
 	heap->list[0] = heap->list[heap->size];
 	sift_down(heap);
 	return (ret);
-}
-
-int	heap_peek(t_heap *heap)
-{
-	if (heap->size == 0)
-		return (-1);
-	return (heap->list[0]->coder_id);
-}
-
-void	add_to_heaps(t_coder *coder)
-{
-	int	first;
-	int	second;
-
-	dongle_order(coder, &first, &second);
-	pthread_mutex_lock(&codex_return()->dongles[first].mutex);
-	heap_push(&codex_return()->dongles[first].heap, coder);
-	if (first != second)
-	{
-		pthread_mutex_lock(&codex_return()->dongles[second].mutex);
-		heap_push(&codex_return()->dongles[second].heap, coder);
-		pthread_mutex_unlock(&codex_return()->dongles[second].mutex);
-	}
-	pthread_mutex_unlock(&codex_return()->dongles[first].mutex);
 }

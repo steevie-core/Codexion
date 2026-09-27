@@ -40,7 +40,6 @@ typedef struct s_heap
 	struct s_coder		**list;
 	int					size;
 	int					capacity;
-	long				last_dgl_granted;
 }	t_heap;
 
 typedef struct s_dongle
@@ -49,7 +48,6 @@ typedef struct s_dongle
 	long				released_time;
 	pthread_cond_t		thread_sleep;
 	t_dongle_stat		dongle_availability;
-	t_heap				heap;
 }	t_dongle;
 
 typedef struct s_coder
@@ -75,8 +73,10 @@ typedef struct s_codex
 	t_scheduler			scheduler;
 	t_dongle			*dongles;
 	t_coder				*coders;
+	t_heap				waiting_heap;
 	int					sim_stopped;
 	pthread_mutex_t		mutex_sim;
+	pthread_mutex_t		mutex_sched;
 	long				start_time;
 }	t_codex;
 
@@ -89,10 +89,7 @@ int						parser_validator(char **argv);
 int						parser_last_validator(char **argv);
 int						dongles_init(void);
 int						coders_init(void);
-void					dongle_order(t_coder *coder,
-							int *first_dongle, int *second_dongle);
 long					timeofday_converter(void);
-int						get_dongle(int i, t_coder *coder);
 void					let_dongle(int i);
 void					let_both_dongles(t_coder *coder);
 int						get_both_dongles(t_coder *coder);
@@ -107,15 +104,19 @@ int						burnout_handle(t_codex *codex, long last_compile_locked,
 							int c_done, int i);
 int						coders_are_done(t_codex *codex);
 void					*monitor_journey(void *arg);
-int						priority_coder(t_coder	*a, t_coder	*b, t_heap *heap);
+int						priority_coder(t_coder	*a, t_coder	*b);
 void					swap_coder(t_coder **a, t_coder **b);
 void					sift_up(t_heap *heap);
 void					sift_down(t_heap *heap);
 t_coder					*heap_pop(t_heap *heap);
 void					heap_push(t_heap *heap, t_coder *coder);
-int						heap_peek(t_heap *heap);
 int						heap_creation(t_heap *heap);
 void					free_heap(t_heap *heap);
-void					add_to_heaps(t_coder *coder);
+t_coder					*is_coder_ready(t_codex *codex);
+void					printer(t_coder *coder);
+int						both_dongles_permission(t_coder *coder);
+int						is_sim_stopped(void);
+void					caller(pthread_t *monitor_thread,
+							pthread_t **coder_threads, int flag, int created);
 
 #endif
