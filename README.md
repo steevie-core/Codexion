@@ -204,11 +204,11 @@ Coder threads check `sim_stopped` before and during their activities, via their 
 
 ## Resources
 
-### Concepts
+### Concepts (Wikipedia)
 
-- [Dining Philosophers Problem](https://en.wikipedia.org/wiki/Dining_philosophers_problem) - Wikipedia
-- [Deadlock / Coffman Conditions](https://en.wikipedia.org/wiki/Deadlock) - Wikipedia
-- [POSIX Threads (Pthreads)](https://en.wikipedia.org/wiki/Pthreads) - Wikipedia
+- [Dining Philosophers Problem](https://en.wikipedia.org/wiki/Dining_philosophers_problem)
+- [Deadlock / Coffman Conditions](https://en.wikipedia.org/wiki/Deadlock)
+- [POSIX Threads (Pthreads)](https://en.wikipedia.org/wiki/Pthreads)
 
 ### Video explanations (Youtube)
 
@@ -226,6 +226,8 @@ Coder threads check `sim_stopped` before and during their activities, via their 
 
 - [pthread_mutex_lock man page](https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3.html)
 - [Valgrind Helgrind manual](https://valgrind.org/docs/manual/hg-manual.html)
+- [CPU Scheduling in OS](https://www.geeksforgeeks.org/operating-systems/cpu-scheduling-in-operating-systems)
+- [What is multithreading](https://www.techtarget.com/whatis/definition/multithreading)
 
 ### AI usage
 
